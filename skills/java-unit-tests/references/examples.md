@@ -118,9 +118,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 
+import static com.example.test.CustomerFixtures.activeCustomer;
+import static com.example.test.RandomData.randomId;
+import static com.example.test.RandomData.randomQuantity;
+import static com.example.test.RandomData.randomString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -155,7 +157,7 @@ class OrderServiceTest {
         @Test
         void shouldSaveOrderWhenRequestIsValid() {
             // given
-            Customer customer = activeCustomer();
+            Customer customer = activeCustomer(customerId);
             when(customerRepository.findById(customerId)).thenReturn(Optional.of(customer));
             when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -174,8 +176,8 @@ class OrderServiceTest {
         void shouldPublishOrderCreatedEventWhenOrderIsSaved() {
             // given
             long orderId = randomId();
-            Order saved = new Order(orderId, activeCustomer(), items);
-            when(customerRepository.findById(customerId)).thenReturn(Optional.of(activeCustomer()));
+            Order saved = new Order(orderId, activeCustomer(customerId), items);
+            when(customerRepository.findById(customerId)).thenReturn(Optional.of(activeCustomer(customerId)));
             when(orderRepository.save(any(Order.class))).thenReturn(saved);
 
             // when
@@ -227,7 +229,7 @@ class OrderServiceTest {
         @Test
         void shouldNotPublishEventWhenSavingOrderFails() {
             // given
-            when(customerRepository.findById(customerId)).thenReturn(Optional.of(activeCustomer()));
+            when(customerRepository.findById(customerId)).thenReturn(Optional.of(activeCustomer(customerId)));
             String errorMessage = randomString();
             when(orderRepository.save(any(Order.class))).thenThrow(new RuntimeException(errorMessage));
 
@@ -238,22 +240,6 @@ class OrderServiceTest {
             verify(eventPublisher, never()).publish(any());
         }
     }
-
-    private Customer activeCustomer() {
-        return new Customer(customerId, false);
-    }
-
-    private static long randomId() {
-        return ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
-    }
-
-    private static int randomQuantity() {
-        return ThreadLocalRandom.current().nextInt(1, 100);
-    }
-
-    private static String randomString() {
-        return UUID.randomUUID().toString();
-    }
 }
 ```
 
@@ -262,6 +248,7 @@ The example notes:
 - Every dependency (`CustomerRepository`, `OrderRepository`, `OrderEventPublisher`) is a `@Mock`. No database or Kafka is involved.
 - `Customer`, `Order`, `Item` and the request are real objects, not mocks.
 - The failure tests verify that nothing was saved or published.
+- There are no private helper methods. Random values come from the `RandomData` helper class, and the active customer comes from `CustomerFixtures`. Both are helper classes that already exist in the project, or that were created with the `java-test-helpers` skill. The names here are only illustrative.
 - Ids, the SKU, the quantity and the error message are random, and assertions use the same variables. So an implementation that hard codes a customer id or an event id fails. The empty item list and `blocked = true` stay fixed because they are the scenarios.
 - The `// when / then` form is used only when the call and the exception assertion are one statement (`assertThatThrownBy`).
 

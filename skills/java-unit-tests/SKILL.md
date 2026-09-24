@@ -107,7 +107,17 @@ Don't mock value objects, DTOs, entities or collections. Build real instances of
 - One scenario per test. The `// when` section has a single call to the class under test.
 - Tests are independent. There's no shared mutable state and no order dependency.
 - No `Thread.sleep`, and no logic (`if`, loops) in tests.
-- Test data should be minimal and meaningful. Use fields or small factory methods when the same data repeats.
+- Test data should be minimal and meaningful. Use fields when the same data repeats inside one test class.
+
+### No helper methods in test classes
+
+Test classes contain only fields, setup (`@BeforeEach`), `@Nested` classes and `@Test` methods. **Don't write private helper methods** such as `randomId()`, `activeCustomer()` or `buildRequest()` inside a test class.
+
+1. **Look for existing helper classes first.** Search `src/test` for random data generators, fixtures, builders or factories for the types you need, and reuse them.
+2. **If a helper you need doesn't exist, create a new helper class** by following the `java-test-helpers` skill. Don't invent your own conventions for it.
+3. **If the `java-test-helpers` skill isn't available**, don't create the helper class. Tell the developer which helpers you need (class, method and what it returns) and ask how to proceed.
+
+Helper classes live in `src/test`, so creating them counts as test code and is allowed in step 3. List every helper class you created or changed in your reply.
 
 ### Random test data
 
@@ -118,7 +128,7 @@ When the scenario doesn't depend on a parameter's specific value, **use a random
 - Random values must still be **valid for the domain**: positive ids, quantities in the allowed range, strings in the expected format. A random value must never change which scenario the test exercises.
 - **Assert against the variable, never a literal copy of it.** Write `hasMessage("Customer " + customerId + " is blocked")`, not `hasMessage("Customer 1 is blocked")`.
 - Generate the values per test: store them in instance fields (JUnit creates a new test instance for each test) or in local variables. Don't use `static final` constants for random values.
-- Use plain Java for generation (`ThreadLocalRandom`, `UUID.randomUUID()`), wrapped in small private helpers such as `randomId()` or `randomString()`. If the project already uses a test data library (Instancio, EasyRandom, Datafaker), use that instead. Don't add a new library without asking.
+- Use plain Java for generation (`ThreadLocalRandom`, `UUID.randomUUID()`), through helper classes (see [No helper methods in test classes](#no-helper-methods-in-test-classes)), not private methods in the test class. If the project already uses a test data library (Instancio, EasyRandom, Datafaker), use that instead. Don't add a new library without asking.
 - When there's a failure, AssertJ and Mockito print the values that didn't match, so the random value that caused it is always visible.
 
 ## Checklist before stopping in step 3
@@ -129,6 +139,7 @@ When the scenario doesn't depend on a parameter's specific value, **use a random
 - [ ] Every external dependency is a `@Mock`, and there's no Spring context, database, broker or network
 - [ ] The class under test is in a field named `sut`
 - [ ] All assertions use AssertJ
+- [ ] The test class has no private helper methods. Helpers come from existing helper classes or new ones created with the `java-test-helpers` skill
 - [ ] Values that aren't the point of the scenario are random, and assertions compare against those variables, not literals
 - [ ] Failure scenarios verify that side effects did **not** happen
 - [ ] No unnecessary stubbing, and the tests pass Mockito strict stubs
