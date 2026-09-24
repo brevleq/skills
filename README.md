@@ -38,3 +38,4 @@ A collection of skills for LLM agents (Claude Code, Claude apps, Agent SDK, and 
 | Skill | Description |
 |-------|-------------|
 | [java-unit-tests](skills/java-unit-tests/SKILL.md) | JUnit 5 + Mockito + AssertJ unit tests in two phases reviewed by a developer: failing skeletons first, then the implementation |
+| [java-test-helpers](skills/java-test-helpers/SKILL.md) | Test Data Builder helpers (`aCustomer().withStatus(DISABLED).build()`) with complete, valid objects built from random values and preferred defaults |

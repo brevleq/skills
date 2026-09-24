@@ -119,10 +119,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.Optional;
 
-import static com.example.test.CustomerFixtures.activeCustomer;
-import static com.example.test.RandomData.randomId;
-import static com.example.test.RandomData.randomQuantity;
-import static com.example.test.RandomData.randomString;
+import static com.example.RandomData.randomId;
+import static com.example.RandomData.randomString;
+import static com.example.order.CustomerHelper.aCustomer;
+import static com.example.order.ItemHelper.anItem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -136,7 +136,7 @@ class OrderServiceTest {
 
     // random values: none of these tests depends on a specific id, SKU or quantity
     private final long customerId = randomId();
-    private final List<Item> items = List.of(new Item(randomString(), randomQuantity()));
+    private final List<Item> items = List.of(anItem().build());
 
     @Mock
     private CustomerRepository customerRepository;
@@ -157,7 +157,7 @@ class OrderServiceTest {
         @Test
         void shouldSaveOrderWhenRequestIsValid() {
             // given
-            Customer customer = activeCustomer(customerId);
+            Customer customer = aCustomer().withId(customerId).build();
             when(customerRepository.findById(customerId)).thenReturn(Optional.of(customer));
             when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -176,8 +176,8 @@ class OrderServiceTest {
         void shouldPublishOrderCreatedEventWhenOrderIsSaved() {
             // given
             long orderId = randomId();
-            Order saved = new Order(orderId, activeCustomer(customerId), items);
-            when(customerRepository.findById(customerId)).thenReturn(Optional.of(activeCustomer(customerId)));
+            Order saved = new Order(orderId, aCustomer().withId(customerId).build(), items);
+            when(customerRepository.findById(customerId)).thenReturn(Optional.of(aCustomer().withId(customerId).build()));
             when(orderRepository.save(any(Order.class))).thenReturn(saved);
 
             // when
@@ -217,7 +217,7 @@ class OrderServiceTest {
             // given
             when(customerRepository.findById(customerId))
                     // fixed value: blocked = true is the scenario
-                    .thenReturn(Optional.of(new Customer(customerId, true)));
+                    .thenReturn(Optional.of(aCustomer().withId(customerId).withBlocked(true).build()));
 
             // when / then
             assertThatThrownBy(() -> sut.createOrder(new CreateOrderRequest(customerId, items)))
@@ -229,7 +229,7 @@ class OrderServiceTest {
         @Test
         void shouldNotPublishEventWhenSavingOrderFails() {
             // given
-            when(customerRepository.findById(customerId)).thenReturn(Optional.of(activeCustomer(customerId)));
+            when(customerRepository.findById(customerId)).thenReturn(Optional.of(aCustomer().withId(customerId).build()));
             String errorMessage = randomString();
             when(orderRepository.save(any(Order.class))).thenThrow(new RuntimeException(errorMessage));
 
@@ -248,7 +248,7 @@ The example notes:
 - Every dependency (`CustomerRepository`, `OrderRepository`, `OrderEventPublisher`) is a `@Mock`. No database or Kafka is involved.
 - `Customer`, `Order`, `Item` and the request are real objects, not mocks.
 - The failure tests verify that nothing was saved or published.
-- There are no private helper methods. Random values come from the `RandomData` helper class, and the active customer comes from `CustomerFixtures`. Both are helper classes that already exist in the project, or that were created with the `java-test-helpers` skill. The names here are only illustrative.
+- There are no private helper methods. Random values come from `RandomData`, and customers and items come from `CustomerHelper` and `ItemHelper`. These helpers were created with the `java-test-helpers` skill. `aCustomer()` defaults to a customer that isn't blocked, so only the blocked test sets `withBlocked(true)`.
 - Ids, the SKU, the quantity and the error message are random, and assertions use the same variables. So an implementation that hard codes a customer id or an event id fails. The empty item list and `blocked = true` stay fixed because they are the scenarios.
 - The `// when / then` form is used only when the call and the exception assertion are one statement (`assertThatThrownBy`).
 
