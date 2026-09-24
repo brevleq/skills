@@ -118,6 +118,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -130,8 +132,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
 
-    private static final long CUSTOMER_ID = 1L;
-    private static final List<Item> ITEMS = List.of(new Item("SKU-1", 2));
+    // random values: none of these tests depends on a specific id, SKU or quantity
+    private final long customerId = randomId();
+    private final List<Item> items = List.of(new Item(randomString(), randomQuantity()));
 
     @Mock
     private CustomerRepository customerRepository;
@@ -153,39 +156,41 @@ class OrderServiceTest {
         void shouldSaveOrderWhenRequestIsValid() {
             // given
             Customer customer = activeCustomer();
-            when(customerRepository.findById(CUSTOMER_ID)).thenReturn(Optional.of(customer));
+            when(customerRepository.findById(customerId)).thenReturn(Optional.of(customer));
             when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // when
-            Order result = sut.createOrder(new CreateOrderRequest(CUSTOMER_ID, ITEMS));
+            Order result = sut.createOrder(new CreateOrderRequest(customerId, items));
 
             // then
             ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
             verify(orderRepository).save(captor.capture());
             assertThat(captor.getValue().customer()).isEqualTo(customer);
-            assertThat(captor.getValue().items()).containsExactlyElementsOf(ITEMS);
+            assertThat(captor.getValue().items()).containsExactlyElementsOf(items);
             assertThat(result).isSameAs(captor.getValue());
         }
 
         @Test
         void shouldPublishOrderCreatedEventWhenOrderIsSaved() {
             // given
-            Order saved = new Order(10L, activeCustomer(), ITEMS);
-            when(customerRepository.findById(CUSTOMER_ID)).thenReturn(Optional.of(activeCustomer()));
+            long orderId = randomId();
+            Order saved = new Order(orderId, activeCustomer(), items);
+            when(customerRepository.findById(customerId)).thenReturn(Optional.of(activeCustomer()));
             when(orderRepository.save(any(Order.class))).thenReturn(saved);
 
             // when
-            sut.createOrder(new CreateOrderRequest(CUSTOMER_ID, ITEMS));
+            sut.createOrder(new CreateOrderRequest(customerId, items));
 
             // then
-            verify(eventPublisher).publish(new OrderCreatedEvent(10L));
+            verify(eventPublisher).publish(new OrderCreatedEvent(orderId));
         }
 
         // failure
         @Test
         void shouldThrowIllegalArgumentExceptionWhenItemsAreEmpty() {
             // given
-            CreateOrderRequest request = new CreateOrderRequest(CUSTOMER_ID, List.of());
+            // fixed value: an empty list is the scenario
+            CreateOrderRequest request = new CreateOrderRequest(customerId, List.of());
 
             // when / then
             assertThatThrownBy(() -> sut.createOrder(request))
@@ -197,10 +202,10 @@ class OrderServiceTest {
         @Test
         void shouldThrowCustomerNotFoundExceptionWhenCustomerDoesNotExist() {
             // given
-            when(customerRepository.findById(CUSTOMER_ID)).thenReturn(Optional.empty());
+            when(customerRepository.findById(customerId)).thenReturn(Optional.empty());
 
             // when / then
-            assertThatThrownBy(() -> sut.createOrder(new CreateOrderRequest(CUSTOMER_ID, ITEMS)))
+            assertThatThrownBy(() -> sut.createOrder(new CreateOrderRequest(customerId, items)))
                     .isInstanceOf(CustomerNotFoundException.class);
             verifyNoInteractions(orderRepository, eventPublisher);
         }
@@ -208,32 +213,46 @@ class OrderServiceTest {
         @Test
         void shouldThrowBusinessExceptionWhenCustomerIsBlocked() {
             // given
-            when(customerRepository.findById(CUSTOMER_ID))
-                    .thenReturn(Optional.of(new Customer(CUSTOMER_ID, true)));
+            when(customerRepository.findById(customerId))
+                    // fixed value: blocked = true is the scenario
+                    .thenReturn(Optional.of(new Customer(customerId, true)));
 
             // when / then
-            assertThatThrownBy(() -> sut.createOrder(new CreateOrderRequest(CUSTOMER_ID, ITEMS)))
+            assertThatThrownBy(() -> sut.createOrder(new CreateOrderRequest(customerId, items)))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessage("Customer 1 is blocked");
+                    .hasMessage("Customer " + customerId + " is blocked");
             verifyNoInteractions(orderRepository, eventPublisher);
         }
 
         @Test
         void shouldNotPublishEventWhenSavingOrderFails() {
             // given
-            when(customerRepository.findById(CUSTOMER_ID)).thenReturn(Optional.of(activeCustomer()));
-            when(orderRepository.save(any(Order.class))).thenThrow(new RuntimeException("db down"));
+            when(customerRepository.findById(customerId)).thenReturn(Optional.of(activeCustomer()));
+            String errorMessage = randomString();
+            when(orderRepository.save(any(Order.class))).thenThrow(new RuntimeException(errorMessage));
 
             // when / then
-            assertThatThrownBy(() -> sut.createOrder(new CreateOrderRequest(CUSTOMER_ID, ITEMS)))
+            assertThatThrownBy(() -> sut.createOrder(new CreateOrderRequest(customerId, items)))
                     .isInstanceOf(RuntimeException.class)
-                    .hasMessage("db down");
+                    .hasMessage(errorMessage);
             verify(eventPublisher, never()).publish(any());
         }
     }
 
-    private static Customer activeCustomer() {
-        return new Customer(CUSTOMER_ID, false);
+    private Customer activeCustomer() {
+        return new Customer(customerId, false);
+    }
+
+    private static long randomId() {
+        return ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
+    }
+
+    private static int randomQuantity() {
+        return ThreadLocalRandom.current().nextInt(1, 100);
+    }
+
+    private static String randomString() {
+        return UUID.randomUUID().toString();
     }
 }
 ```
@@ -243,4 +262,5 @@ The example notes:
 - Every dependency (`CustomerRepository`, `OrderRepository`, `OrderEventPublisher`) is a `@Mock`. No database or Kafka is involved.
 - `Customer`, `Order`, `Item` and the request are real objects, not mocks.
 - The failure tests verify that nothing was saved or published.
+- Ids, the SKU, the quantity and the error message are random, and assertions use the same variables. So an implementation that hard codes a customer id or an event id fails. The empty item list and `blocked = true` stay fixed because they are the scenarios.
 - The `// when / then` form is used only when the call and the exception assertion are one statement (`assertThatThrownBy`).

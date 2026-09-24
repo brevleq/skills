@@ -93,7 +93,19 @@ Don't mock value objects, DTOs, entities or collections. Build real instances of
 - One scenario per test. The `// when` section has a single call to the class under test.
 - Tests are independent. There's no shared mutable state and no order dependency.
 - No `Thread.sleep`, and no logic (`if`, loops) in tests.
-- Test data should be minimal and meaningful. Use constants or small factory methods when the same data repeats.
+- Test data should be minimal and meaningful. Use fields or small factory methods when the same data repeats.
+
+### Random test data
+
+When the scenario doesn't depend on a parameter's specific value, **use a random value**, so a test can't pass because the implementation hard codes that value (e.g. always returning id `1` or the name `"John"`).
+
+- **Keep fixed values** when the value *is* the scenario: boundaries (`0`, `-1`, max length), `null`, empty or blank strings, empty collections, flags that pick a branch (`blocked = true`), enum values the logic switches on, and exact formats being validated.
+- **Randomize everything else:** ids, names, codes, amounts, quantities, dates, descriptions, and the ids returned by mocked dependencies.
+- Random values must still be **valid for the domain**: positive ids, quantities in the allowed range, strings in the expected format. A random value must never change which scenario the test exercises.
+- **Assert against the variable, never a literal copy of it.** Write `hasMessage("Customer " + customerId + " is blocked")`, not `hasMessage("Customer 1 is blocked")`.
+- Generate the values per test: store them in instance fields (JUnit creates a new test instance for each test) or in local variables. Don't use `static final` constants for random values.
+- Use plain Java for generation (`ThreadLocalRandom`, `UUID.randomUUID()`), wrapped in small private helpers such as `randomId()` or `randomString()`. If the project already uses a test data library (Instancio, EasyRandom, Datafaker), use that instead. Don't add a new library without asking.
+- When there's a failure, AssertJ and Mockito print the values that didn't match, so the random value that caused it is always visible.
 
 ## Checklist before stopping in step 3
 
@@ -102,6 +114,7 @@ Don't mock value objects, DTOs, entities or collections. Build real instances of
 - [ ] Every external dependency is a `@Mock`, and there's no Spring context, database, broker or network
 - [ ] The class under test is in a field named `sut`
 - [ ] All assertions use AssertJ
+- [ ] Values that aren't the point of the scenario are random, and assertions compare against those variables, not literals
 - [ ] Failure scenarios verify that side effects did **not** happen
 - [ ] No unnecessary stubbing, and the tests pass Mockito strict stubs
 - [ ] Test results (or why they couldn't be run) are reported to the developer
