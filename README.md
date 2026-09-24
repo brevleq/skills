@@ -20,7 +20,7 @@ A collection of skills for LLM agents (Claude Code, Claude apps, Agent SDK, and 
 1. Copy the template: `cp -r template skills/<skill-name>`
 2. Edit `skills/<skill-name>/SKILL.md`:
    - `name` must match the folder name (lowercase, digits, hyphens).
-   - `description` says what the skill does **and when to use it** — it's what the model reads to decide whether to load the skill.
+   - `description` says what the skill does **and when to use it** — it's what the model reads to decide whether to load the skill. Keep it on one line and don't use `: ` (colon followed by a space) inside it, because YAML treats that as a nested key. If you need one, wrap the whole value in double quotes.
 3. Delete any of `scripts/`, `references/`, `assets/` you don't need.
 4. Add the skill to the index below.
 

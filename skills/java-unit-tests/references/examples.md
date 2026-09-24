@@ -264,3 +264,19 @@ The example notes:
 - The failure tests verify that nothing was saved or published.
 - Ids, the SKU, the quantity and the error message are random, and assertions use the same variables. So an implementation that hard codes a customer id or an event id fails. The empty item list and `blocked = true` stay fixed because they are the scenarios.
 - The `// when / then` form is used only when the call and the exception assertion are one statement (`assertThatThrownBy`).
+
+## Test first: reply for a new feature
+
+If `OrderService.createOrder` didn't exist yet, the step 3 test code would be the same. The reply lists the API the tests expect, and it doesn't create any of that code:
+
+> I implemented the 6 tests in `OrderServiceTest`. The test sources don't compile yet because the feature code doesn't exist. That's expected, and it also means the other tests in this module can't run until the code is added.
+>
+> **API the tests expect:**
+> - `OrderService(CustomerRepository, OrderRepository, OrderEventPublisher)`
+> - `Order OrderService.createOrder(CreateOrderRequest request)`
+> - `record CreateOrderRequest(long customerId, List<Item> items)`
+> - `record OrderCreatedEvent(long orderId)`
+> - `void OrderEventPublisher.publish(OrderCreatedEvent event)`
+> - `BusinessException` with the message `"Customer <id> is blocked"`
+>
+> Every compilation error comes from these missing types. `CustomerRepository`, `Customer` and `CustomerNotFoundException` already exist and are used as they are.
