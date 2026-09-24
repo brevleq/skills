@@ -1,0 +1,246 @@
+# Examples
+
+All examples test this class:
+
+```java
+public class OrderService {
+
+    private final CustomerRepository customerRepository;
+    private final OrderRepository orderRepository;
+    private final OrderEventPublisher eventPublisher; // publishes to a Kafka topic
+
+    public OrderService(CustomerRepository customerRepository,
+                        OrderRepository orderRepository,
+                        OrderEventPublisher eventPublisher) {
+        this.customerRepository = customerRepository;
+        this.orderRepository = orderRepository;
+        this.eventPublisher = eventPublisher;
+    }
+
+    public Order createOrder(CreateOrderRequest request) {
+        if (request.items() == null || request.items().isEmpty()) {
+            throw new IllegalArgumentException("Order must have at least one item");
+        }
+        Customer customer = customerRepository.findById(request.customerId())
+                .orElseThrow(() -> new CustomerNotFoundException(request.customerId()));
+        if (customer.isBlocked()) {
+            throw new BusinessException("Customer " + customer.id() + " is blocked");
+        }
+        Order saved = orderRepository.save(Order.from(customer, request.items()));
+        eventPublisher.publish(new OrderCreatedEvent(saved.id()));
+        return saved;
+    }
+}
+```
+
+## Step 1
+
+Only method names and `fail()`. No fields, mocks or setup.
+
+```java
+package com.example.order;
+
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.fail;
+
+class OrderServiceTest {
+
+    @Nested
+    class CreateOrder {
+
+        // success
+        @Test
+        void shouldSaveOrderWhenRequestIsValid() {
+            fail("Not implemented yet");
+        }
+
+        @Test
+        void shouldPublishOrderCreatedEventWhenOrderIsSaved() {
+            fail("Not implemented yet");
+        }
+
+        // failure
+        @Test
+        void shouldThrowIllegalArgumentExceptionWhenItemsAreNull() {
+            fail("Not implemented yet");
+        }
+
+        @Test
+        void shouldThrowIllegalArgumentExceptionWhenItemsAreEmpty() {
+            fail("Not implemented yet");
+        }
+
+        @Test
+        void shouldThrowCustomerNotFoundExceptionWhenCustomerDoesNotExist() {
+            fail("Not implemented yet");
+        }
+
+        @Test
+        void shouldThrowBusinessExceptionWhenCustomerIsBlocked() {
+            fail("Not implemented yet");
+        }
+
+        @Test
+        void shouldNotPublishEventWhenSavingOrderFails() {
+            fail("Not implemented yet");
+        }
+    }
+}
+```
+
+Reply to the developer after step 1:
+
+> I created 7 test skeletons in `OrderServiceTest` for `createOrder`:
+>
+> **Success:** the order is saved; an `OrderCreatedEvent` is published after the save.
+> **Failure:** items are null; items are empty; the customer doesn't exist; the customer is blocked; the event isn't published when the save fails.
+>
+> I didn't add a test for a `null` request: the method would throw a `NullPointerException`, and I'm not sure that's the intended behavior.
+>
+> Please review, delete or add scenarios, and tell me when to implement them.
+
+## Step 3
+
+Say the developer deleted `shouldThrowIllegalArgumentExceptionWhenItemsAreNull` during review. The remaining tests are implemented, and no new ones are added.
+
+```java
+package com.example.order;
+
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class OrderServiceTest {
+
+    private static final long CUSTOMER_ID = 1L;
+    private static final List<Item> ITEMS = List.of(new Item("SKU-1", 2));
+
+    @Mock
+    private CustomerRepository customerRepository;
+
+    @Mock
+    private OrderRepository orderRepository;
+
+    @Mock
+    private OrderEventPublisher eventPublisher;
+
+    @InjectMocks
+    private OrderService sut;
+
+    @Nested
+    class CreateOrder {
+
+        // success
+        @Test
+        void shouldSaveOrderWhenRequestIsValid() {
+            // given
+            Customer customer = activeCustomer();
+            when(customerRepository.findById(CUSTOMER_ID)).thenReturn(Optional.of(customer));
+            when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            Order result = sut.createOrder(new CreateOrderRequest(CUSTOMER_ID, ITEMS));
+
+            // then
+            ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
+            verify(orderRepository).save(captor.capture());
+            assertThat(captor.getValue().customer()).isEqualTo(customer);
+            assertThat(captor.getValue().items()).containsExactlyElementsOf(ITEMS);
+            assertThat(result).isSameAs(captor.getValue());
+        }
+
+        @Test
+        void shouldPublishOrderCreatedEventWhenOrderIsSaved() {
+            // given
+            Order saved = new Order(10L, activeCustomer(), ITEMS);
+            when(customerRepository.findById(CUSTOMER_ID)).thenReturn(Optional.of(activeCustomer()));
+            when(orderRepository.save(any(Order.class))).thenReturn(saved);
+
+            // when
+            sut.createOrder(new CreateOrderRequest(CUSTOMER_ID, ITEMS));
+
+            // then
+            verify(eventPublisher).publish(new OrderCreatedEvent(10L));
+        }
+
+        // failure
+        @Test
+        void shouldThrowIllegalArgumentExceptionWhenItemsAreEmpty() {
+            // given
+            CreateOrderRequest request = new CreateOrderRequest(CUSTOMER_ID, List.of());
+
+            // when / then
+            assertThatThrownBy(() -> sut.createOrder(request))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("Order must have at least one item");
+            verifyNoInteractions(customerRepository, orderRepository, eventPublisher);
+        }
+
+        @Test
+        void shouldThrowCustomerNotFoundExceptionWhenCustomerDoesNotExist() {
+            // given
+            when(customerRepository.findById(CUSTOMER_ID)).thenReturn(Optional.empty());
+
+            // when / then
+            assertThatThrownBy(() -> sut.createOrder(new CreateOrderRequest(CUSTOMER_ID, ITEMS)))
+                    .isInstanceOf(CustomerNotFoundException.class);
+            verifyNoInteractions(orderRepository, eventPublisher);
+        }
+
+        @Test
+        void shouldThrowBusinessExceptionWhenCustomerIsBlocked() {
+            // given
+            when(customerRepository.findById(CUSTOMER_ID))
+                    .thenReturn(Optional.of(new Customer(CUSTOMER_ID, true)));
+
+            // when / then
+            assertThatThrownBy(() -> sut.createOrder(new CreateOrderRequest(CUSTOMER_ID, ITEMS)))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("Customer 1 is blocked");
+            verifyNoInteractions(orderRepository, eventPublisher);
+        }
+
+        @Test
+        void shouldNotPublishEventWhenSavingOrderFails() {
+            // given
+            when(customerRepository.findById(CUSTOMER_ID)).thenReturn(Optional.of(activeCustomer()));
+            when(orderRepository.save(any(Order.class))).thenThrow(new RuntimeException("db down"));
+
+            // when / then
+            assertThatThrownBy(() -> sut.createOrder(new CreateOrderRequest(CUSTOMER_ID, ITEMS)))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("db down");
+            verify(eventPublisher, never()).publish(any());
+        }
+    }
+
+    private static Customer activeCustomer() {
+        return new Customer(CUSTOMER_ID, false);
+    }
+}
+```
+
+The example notes:
+
+- Every dependency (`CustomerRepository`, `OrderRepository`, `OrderEventPublisher`) is a `@Mock`. No database or Kafka is involved.
+- `Customer`, `Order`, `Item` and the request are real objects, not mocks.
+- The failure tests verify that nothing was saved or published.
+- The `// when / then` form is used only when the call and the exception assertion are one statement (`assertThatThrownBy`).

@@ -29,9 +29,12 @@ A collection of skills for LLM agents (Claude Code, Claude apps, Agent SDK, and 
 - **Claude Code (personal):** symlink a skill into `~/.claude/skills/`, e.g. `ln -s "$PWD/skills/<skill-name>" ~/.claude/skills/`
 - **Claude Code (project):** copy or symlink into `<project>/.claude/skills/`
 - **Claude apps / API:** zip the skill folder and upload it
+- **GitHub Copilot (personal):** symlink a skill into `~/.copilot/skills/` (or `~/.agents/skills/`)
+- **GitHub Copilot (project):** copy into `<project>/.github/skills/` (Copilot also reads `.claude/skills/` and `.agents/skills/`)
+- **Devin:** commit the skill to `<repo>/.agents/skills/` in the repository Devin works on
 
 ## Index
 
 | Skill | Description |
 |-------|-------------|
-| _none yet_ | |
+| [java-unit-tests](skills/java-unit-tests/SKILL.md) | JUnit 5 + Mockito + AssertJ unit tests in two phases reviewed by a developer: failing skeletons first, then the implementation |
