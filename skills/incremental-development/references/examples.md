@@ -6,10 +6,11 @@ Request: *"Customers can place orders. An order has items, it's rejected if the 
 
 > **Plan: create order (6 tasks)**
 >
-> **1. Order constants and error messages**. No test (constants only)
+> **1. Order constants, error messages and metric names**. No test (constants only)
 > - `order/OrderStatus.java` (new): `PENDING`, `CONFIRMED`, `CANCELLED`
 > - `order/OrderErrors.java` (new): error messages for a blocked customer and an empty order
 > - `order/ShippingRules.java` (new): `FREE_SHIPPING_THRESHOLD = 100`
+> - `order/OrderMetricNames.java` (new): `orders.created`, `orders.rejected` and the `reason` tag, following the `<domain>.<event>` naming used in `payment/PaymentMetricNames.java`
 >
 > **2. Order models**
 > - `order/OrderItem.java` (new): SKU, quantity, unit price, and the computed item total
@@ -27,7 +28,8 @@ Request: *"Customers can place orders. An order has items, it's rejected if the 
 >
 > **5. Order creation service**
 > - `order/CreateOrderService.java` (new)
-> - `order/CreateOrderServiceTest.java` (new): success, empty items, customer not found, customer blocked, no event when the save fails
+> - `order/CreateOrderServiceTest.java` (new): success, empty items, customer not found, customer blocked, no event when the save fails, and the metrics recorded in each case
+> - Logs: info when an order is created, debug when it's rejected. Metrics: `orders.created`, and `orders.rejected` tagged by `reason`. Both use the SLF4J and Micrometer setup the other services use.
 >
 > **6. REST endpoint**
 > - `order/OrderController.java` (new)
@@ -157,3 +159,45 @@ private Customer findCustomerAllowedToOrder(long customerId) {
     return customer;
 }
 ```
+
+## Logs and metrics
+
+`createOrder` from the example above, with logs and metrics added in a project that uses SLF4J and Micrometer:
+
+```java
+@Slf4j
+public class CreateOrderService {
+
+    // fields and constructor omitted
+
+    public Order createOrder(CreateOrderRequest request) {
+        validateHasItems(request);
+        Customer customer = findCustomerAllowedToOrder(request.customerId());
+        Order order = orderRepository.save(Order.from(customer, request.items()));
+        eventPublisher.publish(new OrderCreatedEvent(order.id()));
+        meterRegistry.counter(OrderMetricNames.ORDERS_CREATED).increment();
+        log.info("Order created orderId={} customerId={} items={}", order.id(), customer.id(), order.items().size());
+        return order;
+    }
+
+    private Customer findCustomerAllowedToOrder(long customerId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new CustomerNotFoundException(customerId));
+        if (customer.isBlocked()) {
+            log.debug("Rejecting order, customer is blocked customerId={}", customerId);
+            countRejection(OrderMetricNames.REASON_CUSTOMER_BLOCKED);
+            throw new BusinessException(OrderErrors.customerBlocked(customerId));
+        }
+        return customer;
+    }
+
+    private void countRejection(String reason) {
+        meterRegistry.counter(OrderMetricNames.ORDERS_REJECTED, OrderMetricNames.TAG_REASON, reason).increment();
+    }
+}
+```
+
+- **info:** one line per created order, with ids and a count. It doesn't include the customer's email or address.
+- **debug:** why an order was rejected.
+- **Metrics:** names and tags come from `OrderMetricNames`, created in task 1. The `reason` tag has a small, fixed set of values, never the customer id.
+- **Tests:** in the unit test, a `SimpleMeterRegistry` passed to the service lets the test check `orders.created` and `orders.rejected{reason=customer_blocked}`.
