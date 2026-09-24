@@ -51,9 +51,10 @@ We write tests **before** the production code. For a new feature, the class unde
    - **Side effects:** what must be saved, published or sent, and what must **not** happen when something fails (e.g. no message published when the save fails).
 3. Create the test class in `src/test/java`, in the same package as the class under test (for a new feature, the package where it will live), named `<ClassName>Test`. If it already exists, add to it and don't touch the existing tests.
 4. Each scenario is one test method whose body is **only** `fail("Not implemented yet");`. No setup, no mocks, no fields, no given/when/then code.
-5. Name methods `should<ExpectedResult>When<Condition>`, e.g. `shouldThrowNotFoundExceptionWhenCustomerDoesNotExist`. The name alone must make the scenario clear to the reviewer.
-6. Group the tests by method under test with `@Nested` classes when the class has more than one public method under test.
-7. **Stop.** Reply with a short list of the scenarios, grouped by success / failure, and ask the developer to review them. Mention any scenario you left out on purpose, and any behavior that looked ambiguous in the code or the requirement. For a new feature, also say which class and package you assumed the feature will have.
+5. Add Javadoc to the test class, each `@Nested` class and each test method (see [Javadoc](#javadoc)). The Javadoc is what the developer reviews in step 2, so it must describe the scenario clearly.
+6. Name methods `should<ExpectedResult>When<Condition>`, e.g. `shouldThrowNotFoundExceptionWhenCustomerDoesNotExist`. The name alone must make the scenario clear to the reviewer.
+7. Group the tests by method under test with `@Nested` classes when the class has more than one public method under test.
+8. **Stop.** Reply with a short list of the scenarios, grouped by success / failure, and ask the developer to review them. Mention any scenario you left out on purpose, and any behavior that looked ambiguous in the code or the requirement. For a new feature, also say which class and package you assumed the feature will have.
 
 See [references/examples.md](references/examples.md#step-1) for a full example.
 
@@ -63,6 +64,7 @@ See [references/examples.md](references/examples.md#step-1) for a full example.
 2. Implement exactly the test methods in the file. Don't add, remove or rename tests. If you think a scenario is missing, say so in your reply and don't add it.
 3. **Change test code only.** Don't modify production code, build files or other tests. For a new feature, write the tests against the API it should have, even if it doesn't exist yet (see [Test first](#test-first-new-features)). If a test can't be written without changing production code (e.g. a dependency created with `new` inside the class, static calls, hidden time or randomness), write what you can, leave that test failing with a `fail("...")` that explains the problem, and report it.
 4. Structure each test as `// given`, `// when`, `// then`.
+   Make sure every test has Javadoc that matches what it does. Add Javadoc to tests the developer added without it. If the developer renamed a test, update its Javadoc to match the new name.
 5. Run the test class if you can (`mvn -Dtest=<ClassName>Test test` or `gradle test --tests <ClassName>Test`) and report the results. A test that fails because the feature isn't implemented yet is a valid result, so report it and don't "fix" it.
    - If compilation fails, check every error. Errors caused by missing production code are expected. Don't fix them. Fix every other error, since it's a mistake in the test.
    - For a new feature, list the production API the tests expect: classes, constructors, method signatures, exceptions and DTO fields. This is the contract the developer will implement.
@@ -119,6 +121,24 @@ Test classes contain only fields, setup (`@BeforeEach`), `@Nested` classes and `
 
 Helper classes live in `src/test`, so creating them counts as test code and is allowed in step 3. List every helper class you created or changed in your reply.
 
+### Javadoc
+
+Every class and method that isn't `private` has Javadoc. In test classes this is the test class itself, `@Nested` classes, `@Test` methods and `@BeforeEach` / `@AfterEach` methods, since those are package-private. Add Javadoc when you create the element, and update it whenever you change what the element does.
+
+- **Test class:** `Unit tests for {@link OrderService}.`
+- **`@Nested` class:** the method under test, e.g. `Tests for {@link OrderService#createOrder(CreateOrderRequest)}.`
+- **Test method:** the scenario as given / when / then prose:
+  ```java
+  /**
+   * Given a blocked customer,
+   * when an order is created,
+   * then a {@link BusinessException} is thrown and nothing is saved or published.
+   */
+  ```
+- **Setup methods:** what they prepare and why.
+- Describe behavior, not code. Don't repeat the method name word for word, and don't list mocks or stubs.
+- Test helper classes need Javadoc too. The `java-test-helpers` skill covers them.
+
 ### Random test data
 
 When the scenario doesn't depend on a parameter's specific value, **use a random value**, so a test can't pass because the implementation hard codes that value (e.g. always returning id `1` or the name `"John"`).
@@ -139,6 +159,7 @@ When the scenario doesn't depend on a parameter's specific value, **use a random
 - [ ] Every external dependency is a `@Mock`, and there's no Spring context, database, broker or network
 - [ ] The class under test is in a field named `sut`
 - [ ] All assertions use AssertJ
+- [ ] The test class, `@Nested` classes and every non-private method have Javadoc that matches what they do
 - [ ] The test class has no private helper methods. Helpers come from existing helper classes or new ones created with the `java-test-helpers` skill
 - [ ] Values that aren't the point of the scenario are random, and assertions compare against those variables, not literals
 - [ ] Failure scenarios verify that side effects did **not** happen

@@ -35,7 +35,7 @@ public class OrderService {
 
 ## Step 1
 
-Only method names and `fail()`. No fields, mocks or setup.
+Only Javadoc, method names and `fail()`. No fields, mocks or setup. The Javadoc describes each scenario so the developer can review it.
 
 ```java
 package com.example.order;
@@ -45,43 +45,84 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.fail;
 
+/**
+ * Unit tests for {@link OrderService}.
+ */
 class OrderServiceTest {
 
+    /**
+     * Tests for {@link OrderService#createOrder(CreateOrderRequest)}.
+     */
     @Nested
     class CreateOrder {
 
         // success
+        /**
+         * Given an active customer and a request with items,
+         * when an order is created,
+         * then the order is saved with the customer and the items and returned.
+         */
         @Test
         void shouldSaveOrderWhenRequestIsValid() {
             fail("Not implemented yet");
         }
 
+        /**
+         * Given a valid request whose order is saved,
+         * when an order is created,
+         * then an {@link OrderCreatedEvent} with the saved order's id is published.
+         */
         @Test
         void shouldPublishOrderCreatedEventWhenOrderIsSaved() {
             fail("Not implemented yet");
         }
 
         // failure
+        /**
+         * Given a request with {@code null} items,
+         * when an order is created,
+         * then an {@link IllegalArgumentException} is thrown and no dependency is called.
+         */
         @Test
         void shouldThrowIllegalArgumentExceptionWhenItemsAreNull() {
             fail("Not implemented yet");
         }
 
+        /**
+         * Given a request with an empty item list,
+         * when an order is created,
+         * then an {@link IllegalArgumentException} is thrown and no dependency is called.
+         */
         @Test
         void shouldThrowIllegalArgumentExceptionWhenItemsAreEmpty() {
             fail("Not implemented yet");
         }
 
+        /**
+         * Given a customer id that doesn't exist,
+         * when an order is created,
+         * then a {@link CustomerNotFoundException} is thrown and nothing is saved or published.
+         */
         @Test
         void shouldThrowCustomerNotFoundExceptionWhenCustomerDoesNotExist() {
             fail("Not implemented yet");
         }
 
+        /**
+         * Given a blocked customer,
+         * when an order is created,
+         * then a {@link BusinessException} is thrown and nothing is saved or published.
+         */
         @Test
         void shouldThrowBusinessExceptionWhenCustomerIsBlocked() {
             fail("Not implemented yet");
         }
 
+        /**
+         * Given that saving the order fails,
+         * when an order is created,
+         * then the exception is propagated and no event is published.
+         */
         @Test
         void shouldNotPublishEventWhenSavingOrderFails() {
             fail("Not implemented yet");
@@ -131,6 +172,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+/**
+ * Unit tests for {@link OrderService}.
+ */
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
 
@@ -150,10 +194,18 @@ class OrderServiceTest {
     @InjectMocks
     private OrderService sut;
 
+    /**
+     * Tests for {@link OrderService#createOrder(CreateOrderRequest)}.
+     */
     @Nested
     class CreateOrder {
 
         // success
+        /**
+         * Given an active customer and a request with items,
+         * when an order is created,
+         * then the order is saved with the customer and the items and returned.
+         */
         @Test
         void shouldSaveOrderWhenRequestIsValid() {
             // given
@@ -172,6 +224,11 @@ class OrderServiceTest {
             assertThat(result).isSameAs(captor.getValue());
         }
 
+        /**
+         * Given a valid request whose order is saved,
+         * when an order is created,
+         * then an {@link OrderCreatedEvent} with the saved order's id is published.
+         */
         @Test
         void shouldPublishOrderCreatedEventWhenOrderIsSaved() {
             // given
@@ -188,6 +245,11 @@ class OrderServiceTest {
         }
 
         // failure
+        /**
+         * Given a request with an empty item list,
+         * when an order is created,
+         * then an {@link IllegalArgumentException} is thrown and no dependency is called.
+         */
         @Test
         void shouldThrowIllegalArgumentExceptionWhenItemsAreEmpty() {
             // given
@@ -201,6 +263,11 @@ class OrderServiceTest {
             verifyNoInteractions(customerRepository, orderRepository, eventPublisher);
         }
 
+        /**
+         * Given a customer id that doesn't exist,
+         * when an order is created,
+         * then a {@link CustomerNotFoundException} is thrown and nothing is saved or published.
+         */
         @Test
         void shouldThrowCustomerNotFoundExceptionWhenCustomerDoesNotExist() {
             // given
@@ -212,6 +279,11 @@ class OrderServiceTest {
             verifyNoInteractions(orderRepository, eventPublisher);
         }
 
+        /**
+         * Given a blocked customer,
+         * when an order is created,
+         * then a {@link BusinessException} is thrown and nothing is saved or published.
+         */
         @Test
         void shouldThrowBusinessExceptionWhenCustomerIsBlocked() {
             // given
@@ -226,6 +298,11 @@ class OrderServiceTest {
             verifyNoInteractions(orderRepository, eventPublisher);
         }
 
+        /**
+         * Given that saving the order fails,
+         * when an order is created,
+         * then the exception is propagated and no event is published.
+         */
         @Test
         void shouldNotPublishEventWhenSavingOrderFails() {
             // given
@@ -245,6 +322,7 @@ class OrderServiceTest {
 
 The example notes:
 
+- The test class, the `@Nested` class and every test method have Javadoc. Each test's Javadoc describes its scenario as given / when / then.
 - Every dependency (`CustomerRepository`, `OrderRepository`, `OrderEventPublisher`) is a `@Mock`. No database or Kafka is involved.
 - `Customer`, `Order`, `Item` and the request are real objects, not mocks.
 - The failure tests verify that nothing was saved or published.

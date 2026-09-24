@@ -60,6 +60,18 @@ All random generation goes through one shared class, `RandomData`, in the projec
 - **Never change the production type** to make it easier to build (no added setters, constructors or `@Builder`). If it can't be built from a test, tell the developer.
 - **Test first:** if the type doesn't exist yet because the feature isn't implemented, write the helper against the type the feature *should* have. Compilation failing because only production code is missing is acceptable. Don't create the production type.
 
+## Javadoc
+
+Every class and method that isn't `private` has Javadoc: the helper class, the `a<Type>()` / `an<Type>()` factory method, the builder class, every `with...()` method, `build()`, and every `RandomData` method. Add it when you create the element, and update it whenever you change it.
+
+- **Helper class:** `Test data helper for {@link CustomerDTO}.`
+- **Factory method:** what it builds, which values are random, and which preferred defaults it uses (e.g. `status` is `ACTIVE`). Plus `@return`.
+- **Builder class:** what it builds and how to create it.
+- **`with...()` methods:** what the property is and **its default value**. Plus `@param` and `@return`.
+- **`build()`:** that it returns a new instance. Plus `@return`.
+- **`RandomData` methods:** the range or format of the value. Plus `@param` and `@return`.
+- When you change a default, update the Javadoc of the factory method and of the `with...()` method in the same change.
+
 ## Modifying an existing helper
 
 - **Add** a `with...()` method when a test needs one that's missing.
@@ -67,6 +79,7 @@ All random generation goes through one shared class, `RandomData`, in the projec
 - **When the type loses or renames a field,** update the builder to match.
 - **Don't change an existing default** (e.g. `ACTIVE` → `PENDING`) without asking the developer. Other tests may rely on it without setting it explicitly.
 - Don't remove `with...()` methods that tests still use.
+- Add or update the Javadoc of everything you add or change. If existing non-private elements have no Javadoc, add it.
 
 ## Checklist
 
@@ -75,6 +88,7 @@ All random generation goes through one shared class, `RandomData`, in the projec
 - [ ] Every property has a `with<Property>()` method that returns the builder
 - [ ] Data values are random through `RandomData`, and enums and booleans use happy-path defaults
 - [ ] Nested objects and collection elements use their own helpers
+- [ ] Every non-private class and method has Javadoc, and each `with...()` method states its default value
 - [ ] No production code was changed
 - [ ] Existing defaults weren't changed without the developer's approval
 
