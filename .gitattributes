@@ -1,0 +1,4 @@
+* text=auto
+# Keep LF endings so scripts and SKILL.md frontmatter parse correctly on every OS
+*.sh text eol=lf
+*.md text eol=lf
