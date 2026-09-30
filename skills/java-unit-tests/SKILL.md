@@ -1,6 +1,6 @@
 ---
 name: java-unit-tests
-description: Creates Java unit tests with JUnit 5, Mockito and AssertJ in a two-phase, developer-reviewed workflow. Phase 1 lists every success and failure scenario as empty test methods that only call fail(). Phase 2 implements those tests after the developer has reviewed them. Supports test first, so tests for a new feature may be written before its production code exists. Use when asked to write, create, add or implement unit tests for a Java class, method or feature.
+description: Creates Java unit tests with JUnit 5, Mockito and AssertJ in a two-phase, developer-reviewed workflow. Phase 1 lists every success and failure scenario as empty test methods that only call fail(). Phase 2 implements those tests after the developer has reviewed them. Supports test first, so tests for a new feature may be written before its production code exists. Follows the conventions of the project's existing tests. Use when asked to write, create, add or implement unit tests for a Java class, method or feature.
 ---
 
 # Java Unit Tests
@@ -36,7 +36,28 @@ We write tests **before** the production code. For a new feature, the class unde
 
 - **JUnit 5** (`org.junit.jupiter`), **Mockito** (`mockito-junit-jupiter`), **AssertJ**.
 - Before writing anything, check the build file (`pom.xml` / `build.gradle(.kts)`) for these dependencies. If one is missing, tell the developer which to add. Don't edit the build file without asking.
-- Follow the conventions of existing tests in the project (naming, `@Nested`, `@DisplayName`, fixture builders) where they don't conflict with this skill.
+
+## Project conventions
+
+Tests must look like the project's existing tests. **Before step 1, read 2 or 3 existing unit tests of the same kind of class** (a service test for a service, a mapper test for a mapper, a controller test for a controller), preferably in the same module and recently changed. Also read the project's own rules (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, Checkstyle or Spotless configuration).
+
+Where the project has a consistent convention, **it takes precedence over this skill's defaults**:
+
+| Aspect | Skill default | Examples of project conventions to follow instead |
+|--------|---------------|-------------------------------------------------|
+| Location and name of the test class | `src/test/java`, same package, `<ClassName>Test` | `<ClassName>Tests`, a separate `src/unitTest` source set |
+| Test method names | `should<ExpectedResult>When<Condition>` | `createOrder_blockedCustomer_throwsException`, `@DisplayName` with a sentence |
+| Grouping | `@Nested` per method under test | Flat classes, one test class per method |
+| Field for the class under test | `sut` | `underTest`, `orderService` |
+| Mockito style | `when(...)` / `verify(...)` | BDDMockito `given(...)` / `then(...)`, `@MockitoSettings` |
+| Section comments | `// given`, `// when`, `// then` | `// arrange`, `// act`, `// assert` |
+| Test data | `java-test-helpers` builders and `RandomData` | The project's own fixtures, object mothers or data library (Instancio, Datafaker) |
+| Assertions | AssertJ | Only if the project doesn't have AssertJ and all its tests use another library (Hamcrest, JUnit assertions): follow the project and mention it |
+| Javadoc wording | The formats in [Javadoc](#javadoc) | The wording already used in the project's test Javadoc |
+
+If existing tests disagree, follow the most common pattern in the module and prefer the newer one. If it's still unclear, or the project has no unit tests yet, use this skill's defaults. In your step 1 reply, name the test you used as the reference and any skill default you replaced.
+
+These rules **always apply**, whatever the existing tests do: the two-phase workflow with its stops, test first, mocking all external communication (no Spring context or real infrastructure), no production code changes, no private helper methods in test classes, random data for values that aren't the point of the scenario, and Javadoc on every non-private element.
 
 ## Step 1: failing test skeletons
 
@@ -49,12 +70,12 @@ We write tests **before** the production code. For a new feature, the class unde
    - **Business rule violations:** each rule that rejects the request.
    - **Dependency failures:** each dependency that can fail (repository throws, endpoint returns an error or times out, queue publish fails, entity not found).
    - **Side effects:** what must be saved, published or sent, and what must **not** happen when something fails (e.g. no message published when the save fails).
-3. Create the test class in `src/test/java`, in the same package as the class under test (for a new feature, the package where it will live), named `<ClassName>Test`. If it already exists, add to it and don't touch the existing tests.
+3. Create the test class in `src/test/java`, in the same package as the class under test (for a new feature, the package where it will live), named `<ClassName>Test`, unless the project's [conventions](#project-conventions) differ. If it already exists, add to it and don't touch the existing tests.
 4. Each scenario is one test method whose body is **only** `fail("Not implemented yet");`. No setup, no mocks, no fields, no given/when/then code.
 5. Add Javadoc to the test class, each `@Nested` class and each test method (see [Javadoc](#javadoc)). The Javadoc is what the developer reviews in step 2, so it must describe the scenario clearly.
-6. Name methods `should<ExpectedResult>When<Condition>`, e.g. `shouldThrowNotFoundExceptionWhenCustomerDoesNotExist`. The name alone must make the scenario clear to the reviewer.
-7. Group the tests by method under test with `@Nested` classes when the class has more than one public method under test.
-8. **Stop.** Reply with a short list of the scenarios, grouped by success / failure, and ask the developer to review them. Mention any scenario you left out on purpose, and any behavior that looked ambiguous in the code or the requirement. For a new feature, also say which class and package you assumed the feature will have.
+6. Name methods `should<ExpectedResult>When<Condition>`, e.g. `shouldThrowNotFoundExceptionWhenCustomerDoesNotExist`, or with the project's naming convention. The name alone must make the scenario clear to the reviewer.
+7. Group the tests by method under test with `@Nested` classes when the class has more than one public method under test, unless the project groups tests another way.
+8. **Stop.** Reply with a short list of the scenarios, grouped by success / failure, and ask the developer to review them. Mention any scenario you left out on purpose, and any behavior that looked ambiguous in the code or the requirement. For a new feature, also say which class and package you assumed the feature will have. Name the existing test you followed for conventions.
 
 See [references/examples.md](references/examples.md#step-1) for a full example.
 
@@ -63,7 +84,7 @@ See [references/examples.md](references/examples.md#step-1) for a full example.
 1. **Re-read the test class first.** The developer may have deleted, renamed or added methods. The file is the source of truth, not your step 1 output.
 2. Implement exactly the test methods in the file. Don't add, remove or rename tests. If you think a scenario is missing, say so in your reply and don't add it.
 3. **Change test code only.** Don't modify production code, build files or other tests. For a new feature, write the tests against the API it should have, even if it doesn't exist yet (see [Test first](#test-first-new-features)). If a test can't be written without changing production code (e.g. a dependency created with `new` inside the class, static calls, hidden time or randomness), write what you can, leave that test failing with a `fail("...")` that explains the problem, and report it.
-4. Structure each test as `// given`, `// when`, `// then`.
+4. Structure each test as `// given`, `// when`, `// then` (or the project's equivalent).
    Make sure every test has Javadoc that matches what it does. Add Javadoc to tests the developer added without it. If the developer renamed a test, update its Javadoc to match the new name.
 5. Run the test class if you can (`mvn -Dtest=<ClassName>Test test` or `gradle test --tests <ClassName>Test`) and report the results. A test that fails because the feature isn't implemented yet is a valid result, so report it and don't "fix" it.
    - If compilation fails, check every error. Errors caused by missing production code are expected. Don't fix them. Fix every other error, since it's a mistake in the test.
@@ -92,7 +113,7 @@ Don't mock value objects, DTOs, entities or collections. Build real instances of
 ### Mockito
 
 - `@ExtendWith(MockitoExtension.class)` with `@Mock` for dependencies and `@InjectMocks` for the class under test (or construct it by hand in `@BeforeEach` if there's more than one constructor).
-- The field holding the class under test is always named **`sut`** (system under test), e.g. `@InjectMocks private OrderService sut;`, so it stands out from the mocks.
+- The field holding the class under test is named **`sut`** (system under test), e.g. `@InjectMocks private OrderService sut;`, so it stands out from the mocks. If the project's tests consistently use another name, use that.
 - Keep Mockito's strict stubbing. Stub only what the test needs, and don't use `lenient()` to hide unused stubs.
 - Prefer argument values or `ArgumentCaptor` over `any()` when the argument matters to the scenario.
 - Use `verify(...)` for side effects that are the point of the test (saved, published, sent), and `verify(mock, never())` / `verifyNoInteractions(mock)` for things that must not happen in failure scenarios.
@@ -115,7 +136,7 @@ Don't mock value objects, DTOs, entities or collections. Build real instances of
 
 Test classes contain only fields, setup (`@BeforeEach`), `@Nested` classes and `@Test` methods. **Don't write private helper methods** such as `randomId()`, `activeCustomer()` or `buildRequest()` inside a test class.
 
-1. **Look for existing helper classes first.** Search `src/test` for random data generators, fixtures, builders or factories for the types you need, and reuse them.
+1. **Look for existing helper classes first.** Search `src/test` (and shared test modules or `testFixtures`) for random data generators, fixtures, builders or factories for the types you need, and reuse them.
 2. **If a helper you need doesn't exist, create a new helper class** by following the `java-test-helpers` skill. Don't invent your own conventions for it.
 3. **If the `java-test-helpers` skill isn't available**, don't create the helper class. Tell the developer which helpers you need (class, method and what it returns) and ask how to proceed.
 
@@ -153,12 +174,13 @@ When the scenario doesn't depend on a parameter's specific value, **use a random
 
 ## Checklist before stopping in step 3
 
+- [ ] The tests follow the conventions of the project's existing tests (location, naming, structure, Mockito style, test data), and the reference test was named to the developer
 - [ ] Every test method that was in the file after the developer's review is implemented, and none were added, removed or renamed
 - [ ] No production code or build files were changed, and nothing was created in `src/main` to make the tests compile
 - [ ] Any compilation errors are caused only by production code that doesn't exist yet, and the expected API is listed for the developer
 - [ ] Every external dependency is a `@Mock`, and there's no Spring context, database, broker or network
-- [ ] The class under test is in a field named `sut`
-- [ ] All assertions use AssertJ
+- [ ] The class under test is in a field named `sut`, or the project's usual name
+- [ ] All assertions use AssertJ (or the project's only assertion library, if it has no AssertJ)
 - [ ] The test class, `@Nested` classes and every non-private method have Javadoc that matches what they do
 - [ ] The test class has no private helper methods. Helpers come from existing helper classes or new ones created with the `java-test-helpers` skill
 - [ ] Values that aren't the point of the scenario are random, and assertions compare against those variables, not literals

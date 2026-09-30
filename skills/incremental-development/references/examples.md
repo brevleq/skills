@@ -6,6 +6,14 @@ Request: *"Customers can place orders. An order has items, it's rejected if the 
 
 > **Plan: create order (6 tasks)**
 >
+> **Conventions found**
+> - Layout: one package per feature (`payment/`, `customer/`), so everything goes in `order/`
+> - Repositories: Spring Data interfaces with `@Query` for custom queries, like `payment/PaymentRepository.java`
+> - Services: one use case per class (`CapturePaymentService`), constructor injection with `@RequiredArgsConstructor`, errors thrown as `BusinessException` with a code from the feature's `*Errors` class, like `payment/CapturePaymentService.java`
+> - Models: records for DTOs and events, JPA entities with Lombok `@Getter`, like `payment/Payment.java`
+> - Controllers: return `ResponseEntity`, errors mapped by `common/ApiExceptionHandler.java`
+> - Tests: `<ClassName>Test` next to the class, `should...When...` names, data from `*Helper` classes and `RandomData`, like `payment/CapturePaymentServiceTest.java`
+>
 > **1. Order constants, error messages and metric names**. No test (constants only)
 > - `order/OrderStatus.java` (new): `PENDING`, `CONFIRMED`, `CANCELLED`
 > - `order/OrderErrors.java` (new): error messages for a blocked customer and an empty order
@@ -23,8 +31,8 @@ Request: *"Customers can place orders. An order has items, it's rejected if the 
 > - `order/ShippingCalculatorTest.java` (new): free when domestic and over the threshold, charged at or under the threshold, always charged for international orders
 >
 > **4. Order repository and event publisher contracts**. No test (interfaces only)
-> - `order/OrderRepository.java` (new)
-> - `order/OrderEventPublisher.java` (new)
+> - `order/OrderRepository.java` (new): Spring Data interface, like `PaymentRepository`
+> - `order/OrderEventPublisher.java` (new): same shape as `payment/PaymentEventPublisher.java`
 >
 > **5. Order creation service**
 > - `order/CreateOrderService.java` (new)

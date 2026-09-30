@@ -1,6 +1,6 @@
 ---
 name: java-test-helpers
-description: Creates and modifies Java test helper classes that build test data with the Test Data Builder pattern. Each helper has a static a<Type>() or an<Type>() method (e.g. aCustomer(), anAddress()) that returns a builder pre-filled with a complete, valid object of random values and preferred defaults, with a with<Property>() method per property and build(). Use when a unit test needs test data objects (DTOs, entities, requests, events) or when the java-unit-tests skill asks for a new helper.
+description: Creates and modifies Java test helper classes that build test data with the Test Data Builder pattern. Each helper has a static a<Type>() or an<Type>() method (e.g. aCustomer(), anAddress()) that returns a builder pre-filled with a complete, valid object of random values and preferred defaults, with a with<Property>() method per property and build(). Follows the project's existing test data conventions when it has them. Use when a unit test needs test data objects (DTOs, entities, requests, events) or when the java-unit-tests skill asks for a new helper.
 ---
 
 # Java Test Helpers
@@ -14,13 +14,27 @@ CustomerDTO disabled = aCustomer().withStatus(DISABLED).build();        // only 
 
 ## Before creating anything
 
-1. **Search `src/test` for existing helpers** of the type (`*Helper`, builders, fixtures). If one exists, extend it instead of creating another.
+1. **Search `src/test` (and shared test modules or `testFixtures`) for existing helpers** of the type (`*Helper`, builders, fixtures, object mothers). If one exists, extend it instead of creating another.
 2. **Read the type** the helper builds: its fields, how to construct it (constructor, record, setters, Lombok `@Builder`), and its validation (Bean Validation annotations, checks in the constructor, invariants between fields).
-3. **Look at existing helpers** in the project and follow their package, formatting and style where they don't conflict with this skill.
+3. **Read 2 or 3 existing helpers** of other types, preferably in the same module and recently changed, and follow their conventions (see [Project conventions](#project-conventions)).
+
+## Project conventions
+
+When the project already has test data helpers, **new helpers must look like them.** Their conventions take precedence over this skill's defaults for:
+
+- **Naming:** class name (`CustomerHelper`, `CustomerFixtures`, `CustomerMother`, `CustomerTestDataBuilder`), factory method (`aCustomer()`, `customer()`, `validCustomer()`), setter prefix (`with...()` or the bare property name) and builder name.
+- **Location:** the same package as the type, a shared `fixtures` or `testdata` package, or a `testFixtures` source set.
+- **Shape:** a nested builder, a top-level builder class, or factory methods on a shared class.
+- **Random data:** the project's own generator class (`TestData`, `Randoms`) or data library (Instancio, Datafaker, EasyRandom), instead of `RandomData`.
+- **Formatting and Javadoc wording.**
+
+If existing helpers disagree, follow the most common pattern in the module and prefer the newer one. If the project has no helpers yet, use this skill's defaults. Tell the developer which helper you used as the reference and which skill defaults you replaced.
+
+These rules **always apply**, whatever the existing helpers do: `build()` alone produces a complete, valid object; data values are random and enums and booleans use happy-path defaults; there's a way to override every property; helpers contain only data building; production code isn't changed; existing defaults aren't changed without asking; and every non-private element has Javadoc.
 
 ## Helper class structure
 
-One helper class per data type. Given `CustomerDTO`:
+These are the defaults when the project has no helper convention of its own. One helper class per data type. Given `CustomerDTO`:
 
 | Element | Convention |
 |---------|------------|
@@ -48,7 +62,7 @@ Helpers contain only data building. No assertions, no mocks, no calls to product
 
 ## Random values
 
-All random generation goes through one shared class, `RandomData`, in the project's base test package. Helpers and tests never call `ThreadLocalRandom` or `UUID` directly.
+All random generation goes through one shared class, `RandomData`, in the project's base test package (or the project's existing equivalent). Helpers and tests never call `ThreadLocalRandom` or `UUID` directly.
 
 - Reuse `RandomData` if it exists, and add methods to it as needed. If it doesn't exist, create it (see [references/examples.md](references/examples.md#randomdata)).
 - Keep the methods generic and domain free: `randomId()`, `randomString()`, `randomEmail()`, `randomInt(min, max)`, `randomBigDecimal(...)`, `randomPastDate()`, `randomEnum(type)`. Domain-specific values (a valid tax id, a SKU format) belong in the helper of the type that uses them.
@@ -83,10 +97,11 @@ Every class and method that isn't `private` has Javadoc: the helper class, the `
 
 ## Checklist
 
-- [ ] One `<Type>Helper` per type, `final`, with a private constructor, in the type's package under `src/test/java`
+- [ ] The helper follows the conventions of the project's existing helpers, and the reference helper was named to the developer
+- [ ] One `<Type>Helper` per type (or the project's naming), `final`, with a private constructor, in the type's package under `src/test/java`
 - [ ] `a<Type>()` / `an<Type>()` (article by pronunciation) returns a builder, and `build()` alone produces a complete, valid object
-- [ ] Every property has a `with<Property>()` method that returns the builder
-- [ ] Data values are random through `RandomData`, and enums and booleans use happy-path defaults
+- [ ] Every property has a `with<Property>()` method (or the project's equivalent) that returns the builder
+- [ ] Data values are random through `RandomData` (or the project's generator), and enums and booleans use happy-path defaults
 - [ ] Nested objects and collection elements use their own helpers
 - [ ] Every non-private class and method has Javadoc, and each `with...()` method states its default value
 - [ ] No production code was changed

@@ -42,6 +42,6 @@ When Claude creates a skill here, it follows the [create-skill](skills/create-sk
 | Skill | Description |
 |-------|-------------|
 | [create-skill](skills/create-skill/SKILL.md) | Creates a skill in this repository from the template, validates it and registers it right away in every installed agent (Claude Code, GitHub Copilot, Devin for Terminal) |
-| [incremental-development](skills/incremental-development/SKILL.md) | Any language: plans a feature as small tasks (at most 4 files each) with approval stops. Test first per task, constants and models before logic, clean code rules |
-| [java-unit-tests](skills/java-unit-tests/SKILL.md) | JUnit 5 + Mockito + AssertJ unit tests in two phases reviewed by a developer: failing skeletons first, then the implementation |
-| [java-test-helpers](skills/java-test-helpers/SKILL.md) | Test Data Builder helpers (`aCustomer().withStatus(DISABLED).build()`) with complete, valid objects built from random values and preferred defaults |
+| [incremental-development](skills/incremental-development/SKILL.md) | Any language: plans a feature as small tasks (at most 4 files each) with approval stops. Test first per task, constants and models before logic, new code follows the conventions of existing files of the same kind, clean code rules |
+| [java-unit-tests](skills/java-unit-tests/SKILL.md) | JUnit 5 + Mockito + AssertJ unit tests in two phases reviewed by a developer: failing skeletons first, then the implementation. Follows the conventions of the project's existing tests |
+| [java-test-helpers](skills/java-test-helpers/SKILL.md) | Test Data Builder helpers (`aCustomer().withStatus(DISABLED).build()`) with complete, valid objects built from random values and preferred defaults, or the project's own helper conventions when it has them |

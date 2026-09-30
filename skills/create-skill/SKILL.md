@@ -39,6 +39,7 @@ A skill isn't done until the register script has succeeded for it.
    - `description` says what the skill does **and when to use it**, since it's what the model reads to decide whether to load the skill. Keep it on one line, and don't use `: ` (a colon followed by a space) in it, because YAML reads that as a nested key.
    - Keep the body focused on instructions. Move long reference material and examples into `references/`, and executable helpers into `scripts/`.
    - Follow the style of the existing skills in `skills/`.
+   - **If the skill creates or changes files in a user's project** (code, tests, configuration, docs), it must make the agent follow that project's conventions. Before creating a file, the agent reads 2 or 3 existing files of the same kind and matches their location, naming, structure, libraries and formatting. It also reads the project's rules (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, linter configuration). The project's conventions take precedence over the skill's own defaults. Say which of the skill's rules always apply anyway, and have the agent name the reference files it followed. See the *Project conventions* section of `incremental-development` for an example.
 4. **Remove what isn't used:** delete the `scripts/`, `references/` or `assets/` folders the skill doesn't need, and the `.gitkeep` files in the ones it does.
 5. **Register it:**
    ```sh
