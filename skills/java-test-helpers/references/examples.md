@@ -417,3 +417,174 @@ void shouldRejectOrderWhenCustomerIsDisabled() {
 ```
 
 Only the status that matters to the scenario is set. The id, name, address and the order request are random, and the assertion uses `customer.id()` rather than a literal.
+
+## Replacing private test data methods
+
+### Before
+
+The test class builds its own data in private methods at the end of the class. To know what `stored(confirmedOrder())` means, the reader has to find and read three methods.
+
+```java
+class OrderFlowServiceTest {
+
+    private final OrderRepository orderRepository = mock(OrderRepository.class);
+    private final OrderFlowService sut = new OrderFlowService(orderRepository);
+    private final AtomicLong ids = new AtomicLong(1);
+
+    @Test
+    void shouldAskForTheFulfillmentMethodWhenItemsAreConfirmed() {
+        assertThat(sut.currentStage(stored(confirmedOrder()))).isEqualTo(FlowStage.FULFILLMENT_METHOD);
+    }
+
+    @Test
+    void shouldSkipAddressAndFreightWhenOrderIsPickedUp() {
+        Order order = confirmedOrder();
+        order.setFulfillmentMethod(FulfillmentMethod.PICKUP);
+
+        assertThat(sut.currentStage(stored(order))).isEqualTo(FlowStage.TOTAL_CONFIRMATION);
+    }
+
+    @Test
+    void shouldBeClosedWhenOrderIsCanceled() {
+        assertThat(sut.currentStage(stored(orderWithStatus(OrderStatus.CANCELED)))).isEqualTo(FlowStage.CLOSED);
+    }
+
+    @Test
+    void shouldListItemsWithQuantityAndSubtotal() {
+        Order order = preOrder();
+        order.setItems(List.of(item("Brown sugar", new BigDecimal("0.6"), new BigDecimal("15.00"))));
+
+        assertThat(sut.describe(stored(order))).contains("Brown sugar 0.6 = 9.00");
+    }
+
+    private OrderItem item(String productName, BigDecimal quantity, BigDecimal unitPrice) {
+        return anOrderItem()
+                .withProduct(aProduct().withName(productName).build())
+                .withQuantity(quantity)
+                .withUnitPrice(unitPrice)
+                .build();
+    }
+
+    private Long stored(Order order) {
+        order.setId(ids.getAndIncrement());
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+        return order.getId();
+    }
+
+    private Order preOrder() {
+        Order order = new Order();
+        order.setStatus(OrderStatus.PRE_ORDER);
+        order.setItems(List.of());
+        return order;
+    }
+
+    private Order confirmedOrder() {
+        Order order = preOrder();
+        order.setItems(List.of(anOrderItem().build()));
+        order.setItemsConfirmedAt(Instant.now());
+        return order;
+    }
+
+    private Order orderWithStatus(OrderStatus status) {
+        Order order = preOrder();
+        order.setStatus(status);
+        return order;
+    }
+}
+```
+
+### After
+
+`Order` had no helper, so `OrderHelper` is created with `anOrder()`, following the [helper](#helper) above. "Confirmed order" takes more than one property and several tests need it, so it becomes a variant factory method in the helper:
+
+```java
+/**
+ * Creates a builder for an {@link Order} whose items the customer has already confirmed.
+ * It differs from {@link #anOrder()} in the status, which is {@link OrderStatus#PRE_ORDER},
+ * and in {@code itemsConfirmedAt}, which is the current instant.
+ *
+ * @return a new order builder
+ */
+public static OrderBuilder aConfirmedOrder() {
+    return anOrder().withStatus(OrderStatus.PRE_ORDER).withItemsConfirmedAt(Instant.now());
+}
+```
+
+The other private methods are removed, and their code is written in the test methods:
+
+```java
+class OrderFlowServiceTest {
+
+    private final OrderRepository orderRepository = mock(OrderRepository.class);
+    private final OrderFlowService sut = new OrderFlowService(orderRepository);
+
+    @Test
+    void shouldAskForTheFulfillmentMethodWhenItemsAreConfirmed() {
+        // given
+        Order order = aConfirmedOrder().withFulfillmentMethod(null).build();
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        // when
+        FlowStage stage = sut.currentStage(order.getId());
+
+        // then
+        assertThat(stage).isEqualTo(FlowStage.FULFILLMENT_METHOD);
+    }
+
+    @Test
+    void shouldSkipAddressAndFreightWhenOrderIsPickedUp() {
+        // given
+        Order order = aConfirmedOrder()
+                .withFulfillmentMethod(FulfillmentMethod.PICKUP)
+                .withDeliveryAddress(null)
+                .withDeliveryValue(null)
+                .build();
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        // when
+        FlowStage stage = sut.currentStage(order.getId());
+
+        // then
+        assertThat(stage).isEqualTo(FlowStage.TOTAL_CONFIRMATION);
+    }
+
+    @Test
+    void shouldBeClosedWhenOrderIsCanceled() {
+        // given
+        Order order = anOrder().withStatus(OrderStatus.CANCELED).build();
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        // when
+        FlowStage stage = sut.currentStage(order.getId());
+
+        // then
+        assertThat(stage).isEqualTo(FlowStage.CLOSED);
+    }
+
+    @Test
+    void shouldListItemsWithQuantityAndSubtotal() {
+        // given
+        OrderItem item = anOrderItem()
+                .withProduct(aProduct().withName("Brown sugar").build())
+                .withQuantity(new BigDecimal("0.6"))
+                .withUnitPrice(new BigDecimal("15.00"))
+                .build();
+        Order order = anOrder().withItems(List.of(item)).build();
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        // when
+        String description = sut.describe(order.getId());
+
+        // then
+        assertThat(description).contains("Brown sugar 0.6 = 9.00");
+    }
+}
+```
+
+What changed:
+
+- `preOrder()` and `orderWithStatus(status)` became builder calls. `anOrder().withStatus(CANCELED)` is as short as the method call it replaces, and it needs no lookup.
+- `confirmedOrder()` became `aConfirmedOrder()` in `OrderHelper`. It returns the builder, so each test still sets what its scenario depends on.
+- `item(...)` only wrapped helpers that already existed, so its builder chain moved into the one test that uses it. The quantity and the price stay fixed, because the expected subtotal depends on them.
+- `stored(order)` mixed data and stubbing. The id now comes from the helper's random default, which also removes the `ids` counter, and the `when(...)` line is in each test, where the reader can see what the repository returns.
+- Each test states the values its scenario depends on, including the ones that must be absent (`withFulfillmentMethod(null)`). The helper fills every property, so the test no longer depends on what a private method happened to leave unset.

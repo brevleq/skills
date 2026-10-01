@@ -140,6 +140,8 @@ Test classes contain only fields, setup (`@BeforeEach`), `@Nested` classes and `
 2. **If a helper you need doesn't exist, create a new helper class** by following the `java-test-helpers` skill. Don't invent your own conventions for it.
 3. **If the `java-test-helpers` skill isn't available**, don't create the helper class. Tell the developer which helpers you need (class, method and what it returns) and ask how to proceed.
 
+A private method that builds test data (`preOrder()`, `confirmedOrder()`, `orderWithStatus(status)`) is replaced by builder calls written in the test method, or by a variant factory method in the helper when several tests need the same named state. A private method that also stubs a mock (`stored(order)`) is split: the data comes from the helper and the `when(...)` goes in the test method. The `java-test-helpers` skill has the rules for choosing.
+
 Helper classes live in `src/test`, so creating them counts as test code and is allowed in step 3. List every helper class you created or changed in your reply.
 
 ### Javadoc
