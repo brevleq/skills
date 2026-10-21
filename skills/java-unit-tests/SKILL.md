@@ -170,6 +170,23 @@ When the scenario doesn't depend on a parameter's specific value, **use a random
 - **Randomize everything else:** ids, names, codes, amounts, quantities, dates, descriptions, and the ids returned by mocked dependencies.
 - Random values must still be **valid for the domain**: positive ids, quantities in the allowed range, strings in the expected format. A random value must never change which scenario the test exercises.
 - **Assert against the variable, never a literal copy of it.** Write `hasMessage("Customer " + customerId + " is blocked")`, not `hasMessage("Customer 1 is blocked")`.
+- **Never assume the value a helper sets by default.** A value the test uses or asserts must come from the test itself. Either set it explicitly on the builder (`aUser().withEmail(email).build()`) and use that variable, or read it back from the built object (`user.getEmail()`). A constant or literal that only happens to equal a helper's default breaks when the default changes or becomes random:
+  ```java
+  // Wrong: USERNAME only matches because it equals the email aUser() sets by default
+  User user = aUser().build();
+  when(userRepository.findByPhoneNumberOrEmail(USERNAME)).thenReturn(Optional.of(user));
+  TenantUserDetails details = sut.loadUserByUsername(USERNAME, tenant);
+
+  // Right: the test sets the value it relies on...
+  User user = aUser().withEmail(email).build();
+  when(userRepository.findByPhoneNumberOrEmail(email)).thenReturn(Optional.of(user));
+  TenantUserDetails details = sut.loadUserByUsername(email, tenant);
+
+  // ...or reads it from the object
+  User user = aUser().build();
+  when(userRepository.findByPhoneNumberOrEmail(user.getEmail())).thenReturn(Optional.of(user));
+  TenantUserDetails details = sut.loadUserByUsername(user.getEmail(), tenant);
+  ```
 - Generate the values per test: store them in instance fields (JUnit creates a new test instance for each test) or in local variables. Don't use `static final` constants for random values.
 - Use plain Java for generation (`ThreadLocalRandom`, `UUID.randomUUID()`), through helper classes (see [No helper methods in test classes](#no-helper-methods-in-test-classes)), not private methods in the test class. If the project already uses a test data library (Instancio, EasyRandom, Datafaker), use that instead. Don't add a new library without asking.
 - When there's a failure, AssertJ and Mockito print the values that didn't match, so the random value that caused it is always visible.
@@ -186,6 +203,7 @@ When the scenario doesn't depend on a parameter's specific value, **use a random
 - [ ] The test class, `@Nested` classes and every non-private method have Javadoc that matches what they do
 - [ ] The test class has no private helper methods. Helpers come from existing helper classes or new ones created with the `java-test-helpers` skill
 - [ ] Values that aren't the point of the scenario are random, and assertions compare against those variables, not literals
+- [ ] No test relies on a helper's default value through a constant or literal. Every value the test uses is set on the builder or read from the built object
 - [ ] Failure scenarios verify that side effects did **not** happen
 - [ ] No unnecessary stubbing, and the tests pass Mockito strict stubs
 - [ ] Test results (or why they couldn't be run) are reported to the developer
